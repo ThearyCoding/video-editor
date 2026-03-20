@@ -1,9 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-// ignore: depend_on_referenced_packages
 import 'package:ffmepg_compress_video/features/compressor/compression_options.dart' show CompressionOptions;
-// ignore: depend_on_referenced_packages
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 

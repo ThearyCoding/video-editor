@@ -66,7 +66,7 @@ class VideoCompressBloc extends Bloc<VideoCompressEvent, VideoCompressState> {
     emit(state.copyWith(
       isProcessing: true,
       progress: 0.0,
-      log: state.log + 'Starting compression...\n',
+      log: '${state.log}Starting compression...\n',
       error: null,
       output: null,
     ));
@@ -84,13 +84,13 @@ class VideoCompressBloc extends Bloc<VideoCompressEvent, VideoCompressState> {
       onProgress: onProgress,
     );
 
-    final combined = state.log + buf.toString() + '\n';
+    final combined = '${state.log}$buf\n';
     if (res.exitCode == 0 && res.output != null) {
       emit(state.copyWith(
         isProcessing: false,
         progress: 1.0,
         output: res.output,
-        log: combined + '✅ Compression successful!\nOutput: ${res.output!.path}\n',
+        log: '${combined}Compression successful!\nOutput: ${res.output!.path}\n',
       ));
     } else {
       emit(state.copyWith(isProcessing: false, log: combined, error: res.error ?? 'Unknown error'));

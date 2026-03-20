@@ -77,9 +77,9 @@ class FrameBloc extends Bloc<FrameEvent, FrameState> {
       onProgress: (p) => emit(state.copyWith(progress: p)),
     );
 
-    final combined = state.log + buf.toString() + '\n';
+    final combined = '${state.log}$buf\n';
     if (res.exitCode == 0) {
-      emit(state.copyWith(isProcessing: false, progress: 1.0, log: combined + '✅ Frames saved to: $outDir\n'));
+      emit(state.copyWith(isProcessing: false, progress: 1.0, log: '${combined}Frames saved to: $outDir\n'));
     } else {
       emit(state.copyWith(isProcessing: false, log: combined, error: res.error ?? 'Unknown error'));
     }

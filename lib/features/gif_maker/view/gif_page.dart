@@ -22,82 +22,84 @@ class _View extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Video → GIF')),
-      body: BlocBuilder<GifBloc, GifState>(
-        builder: (context, state) {
-          final bloc = context.read<GifBloc>();
-          final pct = (state.progress * 100).clamp(0, 100).round();
-          return Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 8,
-                  children: [
-                    FilledButton.icon(
-                      onPressed: () => bloc.add(const GifPickVideoRequested()),
-                      icon: const Icon(Icons.video_library),
-                      label: const Text('Select Video'),
-                    ),
-                    FilledButton.icon(
-                      onPressed: () => bloc.add(const GifPickOutputDirRequested()),
-                      icon: const Icon(Icons.folder_open),
-                      label: const Text('Choose Output Folder'),
-                    ),
-                    FilledButton.icon(
-                      onPressed: state.isProcessing || state.input == null
-                          ? null
-                          : () => bloc.add(const GifConvertRequested()),
-                      icon: state.isProcessing
-                          ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Icon(Icons.play_arrow),
-                      label: Text(state.isProcessing ? 'Converting…' : 'Convert'),
-                    ),
-                    TextButton.icon(
-                      onPressed: () => bloc.add(const GifResetRequested()),
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('Reset'),
-                    ),
+    return SelectionArea(
+      child: Scaffold(
+        appBar: AppBar(title: const Text('Video → GIF')),
+        body: BlocBuilder<GifBloc, GifState>(
+          builder: (context, state) {
+            final bloc = context.read<GifBloc>();
+            final pct = (state.progress * 100).clamp(0, 100).round();
+            return Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 8,
+                    children: [
+                      FilledButton.icon(
+                        onPressed: () => bloc.add(const GifPickVideoRequested()),
+                        icon: const Icon(Icons.video_library),
+                        label: const Text('Select Video'),
+                      ),
+                      FilledButton.icon(
+                        onPressed: () => bloc.add(const GifPickOutputDirRequested()),
+                        icon: const Icon(Icons.folder_open),
+                        label: const Text('Choose Output Folder'),
+                      ),
+                      FilledButton.icon(
+                        onPressed: state.isProcessing || state.input == null
+                            ? null
+                            : () => bloc.add(const GifConvertRequested()),
+                        icon: state.isProcessing
+                            ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                            : const Icon(Icons.play_arrow),
+                        label: Text(state.isProcessing ? 'Converting…' : 'Convert'),
+                      ),
+                      TextButton.icon(
+                        onPressed: () => bloc.add(const GifResetRequested()),
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Reset'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  if (state.outputDirPath != null) Text('Output folder: ${state.outputDirPath}', style: const TextStyle(fontWeight: FontWeight.w600)),
+                  if (state.input != null) Text('Input: ${state.input!.path}', style: const TextStyle(fontWeight: FontWeight.w600)),
+                  if (state.output != null) Text('Output: ${state.output!.path}', style: const TextStyle(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 16),
+                  if (state.isProcessing) ...[
+                    LinearProgressIndicator(value: state.progress > 0 ? state.progress : null),
+                    const SizedBox(height: 8),
+                    Text('Progress: $pct%'),
                   ],
-                ),
-                const SizedBox(height: 12),
-                if (state.outputDirPath != null) Text('Output folder: ${state.outputDirPath}', style: const TextStyle(fontWeight: FontWeight.w600)),
-                if (state.input != null) Text('Input: ${state.input!.path}', style: const TextStyle(fontWeight: FontWeight.w600)),
-                if (state.output != null) Text('Output: ${state.output!.path}', style: const TextStyle(fontWeight: FontWeight.w600)),
-                const SizedBox(height: 16),
-                if (state.isProcessing) ...[
-                  LinearProgressIndicator(value: state.progress > 0 ? state.progress : null),
+                  const SizedBox(height: 12),
+                  _GifOptionsPanel(options: state.options),
+                  const SizedBox(height: 16),
+                  const Text('Logs', style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
-                  Text('Progress: $pct%'),
-                ],
-                const SizedBox(height: 12),
-                _GifOptionsPanel(options: state.options),
-                const SizedBox(height: 16),
-                const Text('Logs', style: TextStyle(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                Expanded(
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.05),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: SingleChildScrollView(
-                      child: Text(
-                        state.log + (state.error != null ? '\n❌ ${state.error}' : ''),
-                        style: const TextStyle(fontFamily: 'monospace'),
+                  Expanded(
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.05),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: SingleChildScrollView(
+                        child: Text(
+                          state.log + (state.error != null ? '\n❌ ${state.error}' : ''),
+                          style: const TextStyle(fontFamily: 'monospace'),
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
-            ),
-          );
-        },
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }

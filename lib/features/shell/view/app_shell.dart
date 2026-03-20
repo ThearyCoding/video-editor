@@ -1,6 +1,10 @@
+import 'package:ffmepg_compress_video/features/audio_compressor/view/audio_compressor_page.dart'; 
 import 'package:ffmepg_compress_video/features/audio_extractor/view/audio_page.dart';
+import 'package:ffmepg_compress_video/features/audio_video_merge/view/audio_video_merge_page.dart';
 import 'package:ffmepg_compress_video/features/compressor/view/compressor_page.dart';
+import 'package:ffmepg_compress_video/features/frame_extractor/view/frame_page.dart';
 import 'package:ffmepg_compress_video/features/gif_maker/view/gif_page.dart';
+import 'package:ffmepg_compress_video/features/youtube_downloader/view/youtube_page.dart';
 import 'package:flutter/material.dart';
 
 class AppShell extends StatefulWidget {
@@ -17,6 +21,10 @@ class _AppShellState extends State<AppShell> {
     CompressorPage(),
     GifPage(),
     AudioPage(),
+    FramePage(),
+    AudioVideoMergePage(),
+    YoutubePage(),
+    AudioCompressorPage(), // Add this new page
   ];
 
   @override
@@ -40,6 +48,22 @@ class _AppShellState extends State<AppShell> {
               NavigationRailDestination(
                 icon: Icon(Icons.audiotrack),
                 label: Text('MP4 → MP3'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.photo_library),
+                label: Text('Extract Frames'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.merge_type),
+                label: Text('Merge Audio'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.video_library),
+                label: Text('YouTube'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.music_note), 
+                label: Text('Audio Compress'),
               ),
             ],
           ),
