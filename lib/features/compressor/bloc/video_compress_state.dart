@@ -10,8 +10,8 @@ class VideoCompressState extends Equatable {
   final String log;
   final String? error;
   final CompressionOptions options;
-  final String? outputDirPath;  // saved folder
-  final double progress;        // 0..1
+  final String? outputDirPath;
+  final double progress;
 
   const VideoCompressState({
     this.input,

@@ -6,15 +6,22 @@ import 'features/shell/view/app_shell.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Initialize FFmpeg
+
   final ffmpegHelper = FFmpegHelper();
+
+  // IMPORTANT: set platform first if needed
+  ffmpegHelper.initialize(); // optional (or just set platform manually)
+
+  // Kill ALL ffmpeg processes
+  await ffmpegHelper.killAllFFmpegProcesses();
+
+  // Now initialize cleanly
   final initialized = await ffmpegHelper.initialize();
-  
+
   if (!initialized) {
     log('WARNING: FFmpeg initialization failed!');
   }
-  
+
   runApp(const MyApp());
 }
 class MyApp extends StatelessWidget {

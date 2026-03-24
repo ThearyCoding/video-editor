@@ -11,6 +11,10 @@ class PickVideoRequested extends VideoCompressEvent {
   const PickVideoRequested();
 }
 
+class PickImageRequested extends VideoCompressEvent {
+  const PickImageRequested();
+}
+
 class PickOutputDirRequested extends VideoCompressEvent {
   const PickOutputDirRequested();
 }
@@ -28,4 +32,11 @@ class OptionsChanged extends VideoCompressEvent {
 
 class ResetRequested extends VideoCompressEvent {
   const ResetRequested();
+}
+
+class MediaTypeChanged extends VideoCompressEvent {
+  final MediaType mediaType;
+  const MediaTypeChanged(this.mediaType);
+  @override
+  List<Object?> get props => [mediaType];
 }

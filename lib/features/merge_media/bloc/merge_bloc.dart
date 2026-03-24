@@ -19,9 +19,11 @@ class MergeBloc extends Bloc<MergeEvent, MergeState> {
 
   MergeBloc() : super(const MergeState()) {
     on<PickVideoRequested>(_onPickVideo);
+    on<PickImageRequested>(_onPickImage);
     on<PickAudioRequested>(_onPickAudio);
     on<PickOutputDirRequested>(_onPickOutputDir);
     on<MergeOptionsChanged>(_onOptionsChanged);
+    on<MergeTypeChanged>(_onMergeTypeChanged);
     on<MergeRequested>(_onMerge);
     on<RevealInFinderRequested>(_onReveal);
     on<ResetRequested>(_onReset);
@@ -49,14 +51,35 @@ class MergeBloc extends Bloc<MergeEvent, MergeState> {
     try {
       final XFile? xf = await _picker.pickVideo(source: ImageSource.gallery);
       if (xf == null) return;
+      
+      // Clear image file when video is selected
       emit(state.copyWith(
         videoFile: File(xf.path),
+        imageFile: null,
         output: null,
         log: '✅ Video selected: ${p.basename(xf.path)}\n${state.log}',
         error: null,
       ));
     } catch (e) {
       emit(state.copyWith(error: 'Failed to pick video: $e'));
+    }
+  }
+
+  Future<void> _onPickImage(PickImageRequested e, Emitter<MergeState> emit) async {
+    try {
+      final XFile? xf = await _picker.pickImage(source: ImageSource.gallery);
+      if (xf == null) return;
+      
+      // Clear video file when image is selected
+      emit(state.copyWith(
+        imageFile: File(xf.path),
+        videoFile: null,
+        output: null,
+        log: '✅ Image selected: ${p.basename(xf.path)}\n${state.log}',
+        error: null,
+      ));
+    } catch (e) {
+      emit(state.copyWith(error: 'Failed to pick image: $e'));
     }
   }
 
@@ -99,16 +122,34 @@ class MergeBloc extends Bloc<MergeEvent, MergeState> {
     emit(state.copyWith(options: e.options));
   }
 
+  void _onMergeTypeChanged(MergeTypeChanged e, Emitter<MergeState> emit) {
+    emit(state.copyWith(
+      mergeType: e.mergeType,
+      output: null,
+      // Clear the inappropriate file based on type
+      videoFile: e.mergeType == MergeType.videoAudio ? state.videoFile : null,
+      imageFile: e.mergeType == MergeType.imageAudio ? state.imageFile : null,
+    ));
+  }
+
   Future<void> _onMerge(MergeRequested e, Emitter<MergeState> emit) async {
-    if (state.videoFile == null || state.audioFile == null) {
-      emit(state.copyWith(error: 'Please select both video and audio files'));
-      return;
+    // Validate based on merge type
+    if (state.mergeType == MergeType.videoAudio) {
+      if (state.videoFile == null || state.audioFile == null) {
+        emit(state.copyWith(error: 'Please select both video and audio files'));
+        return;
+      }
+    } else {
+      if (state.imageFile == null || state.audioFile == null) {
+        emit(state.copyWith(error: 'Please select both image and audio files'));
+        return;
+      }
     }
 
     emit(state.copyWith(
       isProcessing: true,
       progress: 0.0,
-      log: '🎬 Starting merge process...\n${state.log}',
+      log: '🎬 Starting ${state.mergeType == MergeType.videoAudio ? 'video+audio' : 'image+audio'} merge...\n${state.log}',
       error: null,
       output: null,
     ));
@@ -117,45 +158,65 @@ class MergeBloc extends Bloc<MergeEvent, MergeState> {
       final logBuffer = StringBuffer();
       
       // Determine output path
-     final outputDir = state.outputDirPath ?? (await getApplicationSupportDirectory()).path;
-
-      final videoName = p.basenameWithoutExtension(state.videoFile!.path);
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final outputFile = File(p.join(outputDir, '${videoName}_merged_$timestamp.mp4'));
-
-      // Get durations to determine if we need to trim
-      final videoDuration = await _getDuration(state.videoFile!.path);
-      final audioDuration = await _getDuration(state.audioFile!.path);
+      final outputDir = state.outputDirPath ?? (await getApplicationSupportDirectory()).path;
       
-      logBuffer.writeln('Video duration: ${videoDuration?.toStringAsFixed(2)}s');
+      final inputName = state.mergeType == MergeType.videoAudio
+          ? p.basenameWithoutExtension(state.videoFile!.path)
+          : p.basenameWithoutExtension(state.imageFile!.path);
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final outputFile = File(p.join(outputDir, '${inputName}_merged_$timestamp.mp4'));
+
+      // Get durations
+      final audioDuration = await _getDuration(state.audioFile!.path);
       logBuffer.writeln('Audio duration: ${audioDuration?.toStringAsFixed(2)}s');
 
       // Build ffmpeg arguments
       final args = <String>['-y'];
       
-      // Add inputs
-      args.addAll(['-i', state.videoFile!.path]);
-      args.addAll(['-i', state.audioFile!.path]);
-
-      // Map streams
-      args.addAll(['-map', '0:v:0']); // Video from first input
-      args.addAll(['-map', '1:a:0']); // Audio from second input
-
-      // Trim if needed
-      if (state.options.useShortestAudio && 
-          videoDuration != null && 
-          audioDuration != null) {
-        final shortest = videoDuration < audioDuration ? videoDuration : audioDuration;
-        args.addAll(['-t', shortest.toStringAsFixed(3)]);
-        logBuffer.writeln('Trimming to shortest duration: ${shortest.toStringAsFixed(2)}s');
+      if (state.mergeType == MergeType.videoAudio) {
+        // Video + Audio merge
+        args.addAll(['-i', state.videoFile!.path]);
+        args.addAll(['-i', state.audioFile!.path]);
+        args.addAll(['-map', '0:v:0']); // Video from first input
+        args.addAll(['-map', '1:a:0']); // Audio from second input
+        
+        final videoDuration = await _getDuration(state.videoFile!.path);
+        logBuffer.writeln('Video duration: ${videoDuration?.toStringAsFixed(2)}s');
+        
+        // Trim if needed
+        if (state.options.useShortestAudio && 
+            videoDuration != null && 
+            audioDuration != null) {
+          final shortest = videoDuration < audioDuration ? videoDuration : audioDuration;
+          args.addAll(['-t', shortest.toStringAsFixed(3)]);
+          logBuffer.writeln('Trimming to shortest duration: ${shortest.toStringAsFixed(2)}s');
+        }
+        
+      } else {
+        // Image + Audio merge
+        args.addAll(['-loop', '1', '-i', state.imageFile!.path]);
+        args.addAll(['-i', state.audioFile!.path]);
+        
+        // Use audio duration for video length
+        if (audioDuration != null && audioDuration > 0) {
+          args.addAll(['-t', audioDuration.toStringAsFixed(3)]);
+          logBuffer.writeln('Setting video duration to match audio: ${audioDuration.toStringAsFixed(2)}s');
+        }
+        
+        // Scale image to common resolutions if needed
+        args.addAll([
+          '-vf', 'scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2',
+          '-r', '30', // Set frame rate
+        ]);
       }
 
-      // Video codec options
+      // Common video codec options
       args.addAll([
         '-c:v', state.options.videoCodec,
         '-b:v', '${state.options.videoBitrateKbps}k',
         '-c:a', 'aac',
         '-b:a', '${state.options.audioBitrateKbps}k',
+        '-pix_fmt', 'yuv420p', // Ensure compatibility
         '-shortest', // Ensure output ends when shortest stream ends
         outputFile.path,
       ]);
@@ -163,7 +224,7 @@ class MergeBloc extends Bloc<MergeEvent, MergeState> {
       logBuffer.writeln('FFmpeg command: ffmpeg ${args.join(' ')}');
 
       // Execute FFmpeg
-      final totalSeconds = videoDuration ?? audioDuration ?? 0;
+      final totalSeconds = audioDuration ?? 0;
       
       final proc = await _ffmpegHelper.startFFmpeg(args);
       

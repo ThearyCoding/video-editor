@@ -70,7 +70,8 @@ flutter:
 
 
   assets:
-    - assets/bin/macos/ffmpeg
+    - assets/bin/macos/ffmpeg_arm64
+    - assets/bin/macos/ffmpeg_x86_64
     - assets/bin/windows/ffmpeg.exe
 
   # An image asset can refer to one or more resolution-specific "variants", see

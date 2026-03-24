@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'package:ffmepg_compress_video/features/compressor/compression_options.dart' show CompressionOptions;
+import 'package:ffmepg_compress_video/features/compressor/compression_options.dart' show CompressionOptions, MediaType;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
@@ -13,11 +13,19 @@ class FfmpegResult {
 }
 
 class FfmpegProcessService {
-  Future<File> buildOutputFile(File input, {String? directory}) async {
+  
+  Future<File> buildOutputFile(File input, {String? directory, required MediaType mediaType, String? imageFormat}) async {
     final dirPath = directory ?? (await getTemporaryDirectory()).path;
     final ts = DateTime.now().millisecondsSinceEpoch;
     final base = p.basenameWithoutExtension(input.path);
-    return File(p.join(dirPath, '${base}_compressed_$ts.mp4'));
+    
+    if (mediaType == MediaType.video) {
+      return File(p.join(dirPath, '${base}_compressed_$ts.mp4'));
+    } else {
+      // Image output format
+      final format = imageFormat ?? 'jpg';
+      return File(p.join(dirPath, '${base}_compressed_$ts.$format'));
+    }
   }
 
   String _scaleFilter(int? w, int? h) {
@@ -27,7 +35,7 @@ class FfmpegProcessService {
     return 'scale=-2:$h';
   }
 
-  List<String> buildArgs({
+  List<String> buildVideoArgs({
     required File input,
     required File output,
     required CompressionOptions opt,
@@ -45,6 +53,39 @@ class FfmpegProcessService {
       '-b:a', '${opt.audioBitrateK}k',
       output.path,
     ];
+  }
+
+  List<String> buildImageArgs({
+    required File input,
+    required File output,
+    required CompressionOptions opt,
+  }) {
+    final args = <String>[
+      '-y',
+      '-i', input.path,
+    ];
+    
+    // Resize if needed
+    if (opt.width != null || opt.height != null) {
+      args.addAll(['-vf', _scaleFilter(opt.width, opt.height)]);
+    }
+    
+    // Quality/compression settings based on format
+    switch (opt.imageFormat) {
+      case 'jpg':
+      case 'jpeg':
+        args.addAll(['-q:v', (100 - opt.imageQuality).toString()]); // 1-100, lower = better quality
+        break;
+      case 'png':
+        args.addAll(['-compression_level', '9']); // 0-9, higher = more compression
+        break;
+      case 'webp':
+        args.addAll(['-quality', opt.imageQuality.toString()]); // 0-100
+        break;
+    }
+    
+    args.add(output.path);
+    return args;
   }
 
   Future<double?> probeDurationSeconds(File input) async {
@@ -83,9 +124,33 @@ class FfmpegProcessService {
     void Function(String line)? onLog,
     void Function(double progress01)? onProgress,
   }) async {
-    final out = await buildOutputFile(input, directory: outputDirectory);
-    final args = buildArgs(input: input, output: out, opt: options);
+    final out = await buildOutputFile(
+      input, 
+      directory: outputDirectory,
+      mediaType: options.mediaType,
+      imageFormat: options.imageFormat,
+    );
+    
+    final args = options.mediaType == MediaType.video
+        ? buildVideoArgs(input: input, output: out, opt: options)
+        : buildImageArgs(input: input, output: out, opt: options);
 
+    // For images, we don't need progress tracking the same way
+    if (options.mediaType == MediaType.image) {
+      final result = await Process.run('ffmpeg', args, runInShell: true);
+      if (result.exitCode == 0 && await out.exists()) {
+        onProgress?.call(1.0);
+        onLog?.call('✅ Done: ${out.path}');
+        return FfmpegResult(output: out, exitCode: result.exitCode);
+      }
+      return FfmpegResult(
+        output: null, 
+        exitCode: result.exitCode, 
+        error: 'ffmpeg exitCode=${result.exitCode}\n${result.stderr}'
+      );
+    }
+
+    // Video compression with progress tracking
     final total = await probeDurationSeconds(input);
     double last = -1;
 

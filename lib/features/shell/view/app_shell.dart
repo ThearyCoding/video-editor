@@ -1,6 +1,6 @@
 import 'package:ffmepg_compress_video/features/audio_compressor/view/audio_compressor_page.dart'; 
 import 'package:ffmepg_compress_video/features/audio_extractor/view/audio_page.dart';
-import 'package:ffmepg_compress_video/features/audio_video_merge/view/audio_video_merge_page.dart';
+import 'package:ffmepg_compress_video/features/merge_media/view/audio_video_merge_page.dart';
 import 'package:ffmepg_compress_video/features/compressor/view/compressor_page.dart';
 import 'package:ffmepg_compress_video/features/frame_extractor/view/frame_page.dart';
 import 'package:ffmepg_compress_video/features/gif_maker/view/gif_page.dart';
@@ -55,7 +55,7 @@ class _AppShellState extends State<AppShell> {
               ),
               NavigationRailDestination(
                 icon: Icon(Icons.merge_type),
-                label: Text('Merge Audio'),
+                label: Text('Media Merger'),
               ),
               NavigationRailDestination(
                 icon: Icon(Icons.video_library),

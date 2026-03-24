@@ -5,6 +5,7 @@ import '../bloc/video_compress_bloc.dart';
 import '../bloc/video_compress_event.dart';
 import '../bloc/video_compress_state.dart';
 import '../compression_options.dart' as mymodel;
+
 class CompressorPage extends StatelessWidget {
   const CompressorPage({super.key});
 
@@ -23,7 +24,7 @@ class _View extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Video Compressor')),
+      appBar: AppBar(title: const Text('Media Compressor')),
       body: BlocBuilder<VideoCompressBloc, VideoCompressState>(
         builder: (context, state) {
           final bloc = context.read<VideoCompressBloc>();
@@ -34,14 +35,31 @@ class _View extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Media Type Selector
+                SegmentedButton<mymodel.MediaType>(
+                  segments: const [
+                    ButtonSegment(value: mymodel.MediaType.video, label: Text('Video'), icon: Icon(Icons.videocam)),
+                    ButtonSegment(value: mymodel.MediaType.image, label: Text('Image'), icon: Icon(Icons.image)),
+                  ],
+                  selected: {state.options.mediaType},
+                  onSelectionChanged: (Set<mymodel.MediaType> selection) {
+                    bloc.add(MediaTypeChanged(selection.first));
+                  },
+                ),
+                const SizedBox(height: 16),
+                
                 Wrap(
                   spacing: 12,
                   runSpacing: 8,
                   children: [
                     FilledButton.icon(
-                      onPressed: () => bloc.add(const PickVideoRequested()),
-                      icon: const Icon(Icons.video_library),
-                      label: const Text('Select Video'),
+                      onPressed: () => bloc.add(
+                        state.options.mediaType == mymodel.MediaType.video 
+                          ? const PickVideoRequested() 
+                          : const PickImageRequested()
+                      ),
+                      icon: Icon(state.options.mediaType == mymodel.MediaType.video ? Icons.video_library : Icons.image),
+                      label: Text(state.options.mediaType == mymodel.MediaType.video ? 'Select Video' : 'Select Image'),
                     ),
                     FilledButton.icon(
                       onPressed: () => bloc.add(const PickOutputDirRequested()),
@@ -109,6 +127,7 @@ class _View extends StatelessWidget {
     );
   }
 }
+
 class _OptionsPanel extends StatefulWidget {
   final mymodel.CompressionOptions options;
   const _OptionsPanel({required this.options});
@@ -118,9 +137,10 @@ class _OptionsPanel extends StatefulWidget {
 }
 
 class _OptionsPanelState extends State<_OptionsPanel> {
-  late TextEditingController _crf, _w, _h, _audio;
+  late TextEditingController _crf, _w, _h, _audio, _imageQuality;
   String _codec = 'libx264';
   String _preset = 'fast';
+  String _imageFormat = 'jpg';
 
   @override
   void initState() {
@@ -129,15 +149,20 @@ class _OptionsPanelState extends State<_OptionsPanel> {
     _w = TextEditingController(text: widget.options.width?.toString() ?? '');
     _h = TextEditingController(text: widget.options.height?.toString() ?? '');
     _audio = TextEditingController(text: widget.options.audioBitrateK.toString());
+    _imageQuality = TextEditingController(text: widget.options.imageQuality.toString());
     _codec = widget.options.vCodec;
     _preset = widget.options.preset;
+    _imageFormat = widget.options.imageFormat;
   }
 
   void _apply() {
     final o = mymodel.CompressionOptions(
+      mediaType: widget.options.mediaType,
       vCodec: _codec,
       crf: int.tryParse(_crf.text.trim()) ?? 24,
       preset: _preset,
+      imageQuality: int.tryParse(_imageQuality.text.trim()) ?? 85,
+      imageFormat: _imageFormat,
       width: _w.text.trim().isEmpty ? null : int.tryParse(_w.text.trim()),
       height: _h.text.trim().isEmpty ? null : int.tryParse(_h.text.trim()),
       audioBitrateK: int.tryParse(_audio.text.trim()) ?? 128,
@@ -149,6 +174,14 @@ class _OptionsPanelState extends State<_OptionsPanel> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.options.mediaType == mymodel.MediaType.video) {
+      return _buildVideoOptions();
+    } else {
+      return _buildImageOptions();
+    }
+  }
+
+  Widget _buildVideoOptions() {
     return Wrap(
       spacing: 12,
       runSpacing: 8,
@@ -181,6 +214,28 @@ class _OptionsPanelState extends State<_OptionsPanel> {
         SizedBox(width: 90, child: TextField(controller: _w, decoration: const InputDecoration(labelText: 'Width'), keyboardType: TextInputType.number, onChanged: (_) => _apply())),
         SizedBox(width: 90, child: TextField(controller: _h, decoration: const InputDecoration(labelText: 'Height'), keyboardType: TextInputType.number, onChanged: (_) => _apply())),
         SizedBox(width: 120, child: TextField(controller: _audio, decoration: const InputDecoration(labelText: 'Audio kbps'), keyboardType: TextInputType.number, onChanged: (_) => _apply())),
+      ],
+    );
+  }
+
+  Widget _buildImageOptions() {
+    return Wrap(
+      spacing: 12,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        SizedBox(width: 120, child: TextField(controller: _imageQuality, decoration: const InputDecoration(labelText: 'Quality 0-100'), keyboardType: TextInputType.number, onChanged: (_) => _apply())),
+        DropdownButton<String>(
+          value: _imageFormat,
+          onChanged: (v) { if (v == null) return; setState(() => _imageFormat = v); _apply(); },
+          items: const [
+            DropdownMenuItem(value: 'jpg', child: Text('JPEG')),
+            DropdownMenuItem(value: 'png', child: Text('PNG')),
+            DropdownMenuItem(value: 'webp', child: Text('WebP')),
+          ],
+        ),
+        SizedBox(width: 90, child: TextField(controller: _w, decoration: const InputDecoration(labelText: 'Width'), keyboardType: TextInputType.number, onChanged: (_) => _apply())),
+        SizedBox(width: 90, child: TextField(controller: _h, decoration: const InputDecoration(labelText: 'Height'), keyboardType: TextInputType.number, onChanged: (_) => _apply())),
       ],
     );
   }

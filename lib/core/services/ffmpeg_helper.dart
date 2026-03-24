@@ -9,7 +9,7 @@ class FFmpegHelper {
   static final FFmpegHelper _instance = FFmpegHelper._internal();
   factory FFmpegHelper() => _instance;
   FFmpegHelper._internal();
-
+Process? _currentProcess;
   String? _ffmpegPath;
   String? _ffprobePath;
   bool _isInitialized = false;
@@ -63,30 +63,59 @@ class FFmpegHelper {
     return null;
   }
 
-Future<void> _makeExecutable(String path) async {
-  if (_platform == 'macos' || _platform == 'linux') {
-    try {
-      // Set permissions
-      await Process.run('chmod', ['755', path]);
-      await Process.run('chmod', ['+x', path]);
-      
-      // Remove quarantine attribute (critical for macOS)
+  /// Detect system architecture (for macOS)
+  Future<String> _getArchitecture() async {
+    if (_platform == 'macos') {
       try {
-        await Process.run('xattr', ['-d', 'com.apple.quarantine', path]);
-        log('Removed quarantine attribute');
+        final result = await Process.run('uname', ['-m']);
+        final arch = result.stdout.toString().trim();
+        log('Detected architecture: $arch');
+        
+        if (arch == 'arm64' || arch == 'aarch64') {
+          return 'arm64';
+        }
+        return 'x86_64';
       } catch (e) {
-        log('No quarantine attribute to remove');
+        log('Failed to detect architecture: $e');
+        // Fallback to checking if running under Rosetta
+        try {
+          final sysctlResult = await Process.run('sysctl', ['-n', 'hw.optional.arm64']);
+          if (sysctlResult.stdout.toString().trim() == '1') {
+            return 'arm64';
+          }
+        } catch (e2) {
+          log('Failed to check sysctl: $e2');
+        }
+        return 'x86_64'; // fallback
       }
-      
-      // Verify permissions
-      final stat = await File(path).stat();
-      log('Final permissions: ${stat.mode}');
-      
-    } catch (e) {
-      log('Warning: Could not make file executable: $e');
+    }
+    return 'x86_64';
+  }
+
+  Future<void> _makeExecutable(String path) async {
+    if (_platform == 'macos' || _platform == 'linux') {
+      try {
+        // Set permissions
+        await Process.run('chmod', ['755', path]);
+        await Process.run('chmod', ['+x', path]);
+        
+        // Remove quarantine attribute (critical for macOS)
+        try {
+          await Process.run('xattr', ['-d', 'com.apple.quarantine', path]);
+          log('Removed quarantine attribute');
+        } catch (e) {
+          log('No quarantine attribute to remove');
+        }
+        
+        // Verify permissions
+        final stat = await File(path).stat();
+        log('Final permissions: ${stat.mode}');
+        
+      } catch (e) {
+        log('Warning: Could not make file executable: $e');
+      }
     }
   }
-}
 
   Future<bool> _verifyFFmpeg(String path) async {
     try {
@@ -136,7 +165,16 @@ Future<void> _makeExecutable(String path) async {
       assetPath = 'assets/bin/windows/ffmpeg.exe';
     } else if (_platform == 'macos') {
       executableName = 'ffmpeg';
-      assetPath = 'assets/bin/macos/ffmpeg';
+      
+      // Detect architecture and select the correct binary
+      final arch = await _getArchitecture();
+      if (arch == 'arm64') {
+        assetPath = 'assets/bin/macos/ffmpeg_arm64';
+        log('Using ARM64 FFmpeg binary for Apple Silicon');
+      } else {
+        assetPath = 'assets/bin/macos/ffmpeg_x86_64';
+        log('Using x86_64 FFmpeg binary for Intel Mac');
+      }
     } else {
       throw Exception('Unsupported platform: $_platform');
     }
@@ -205,26 +243,60 @@ Future<void> _makeExecutable(String path) async {
   }
 
   Future<Process> startFFmpeg(List<String> arguments) async {
-    final path = await ffmpegPath;
-    log('Starting: $path ${arguments.join(' ')}');
-    
-    try {
-      if (_platform == 'windows') {
-        return await Process.start(path, arguments, runInShell: true);
-      } else {
-        try {
-          return await Process.start(path, arguments, runInShell: false);
-        } catch (e) {
-          log('Fallback to shell: $e');
-          return await Process.start(path, arguments, runInShell: true);
-        }
+  final path = await ffmpegPath;
+  log('Starting: $path ${arguments.join(' ')}');
+
+  try {
+    if (_platform == 'windows') {
+      _currentProcess = await Process.start(path, arguments, runInShell: true);
+    } else {
+      try {
+        _currentProcess = await Process.start(path, arguments, runInShell: false);
+      } catch (e) {
+        log('Fallback to shell: $e');
+        _currentProcess = await Process.start(path, arguments, runInShell: true);
       }
-    } catch (e) {
-      log('Process start error: $e');
-      rethrow;
     }
+
+    return _currentProcess!;
+  } catch (e) {
+    log('Process start error: $e');
+    rethrow;
+  }
+}
+Future<void> killAllFFmpegProcesses() async {
+  try {
+    if (_platform == 'windows') {
+      await Process.run('taskkill', ['/IM', 'ffmpeg.exe', '/F']);
+    } else if (_platform == 'macos' || _platform == 'linux') {
+      await Process.run('pkill', ['-f', 'ffmpeg']);
+    }
+
+    log('All FFmpeg processes killed');
+  } catch (e) {
+    log('Failed to kill FFmpeg processes: $e');
+  }
+}
+Future<void> killFFmpeg({bool force = false}) async {
+  if (_currentProcess == null) {
+    log('No FFmpeg process running');
+    return;
   }
 
+  try {
+    if (force) {
+      _currentProcess!.kill(ProcessSignal.sigkill);
+      log('FFmpeg force killed (SIGKILL)');
+    } else {
+      _currentProcess!.kill(ProcessSignal.sigterm);
+      log('FFmpeg gracefully terminated (SIGTERM)');
+    }
+  } catch (e) {
+    log('Error killing FFmpeg: $e');
+  } finally {
+    _currentProcess = null;
+  }
+}
   Future<ProcessResult> runFFmpeg(List<String> arguments) async {
     final path = await ffmpegPath;
     return await _runProcess(path, arguments);
