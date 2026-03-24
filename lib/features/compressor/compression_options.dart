@@ -6,17 +6,18 @@ class CompressionOptions extends Equatable {
   final MediaType mediaType;
   
   // Video options
-  final String vCodec;   // 'libx264' or 'libx265'
-  final int crf;         // 18..28 (smaller = higher)
-  final String preset;   // ultrafast..veryslow
+  final String vCodec;
+  final int crf;
+  final String preset;
   
   // Image options
-  final int imageQuality; // 0-100 (higher = better quality)
-  final String imageFormat; // 'jpg', 'png', 'webp'
+  final int imageQuality;
+  final String imageFormat;
+  final int? targetSizeKB;
   
   // Common options
-  final int? width;      // optional resize
-  final int? height;     // optional resize
+  final int? width;
+  final int? height;
   final int audioBitrateK;
   final String? outputDirPath;
 
@@ -27,6 +28,7 @@ class CompressionOptions extends Equatable {
     this.preset = 'fast',
     this.imageQuality = 85,
     this.imageFormat = 'jpg',
+    this.targetSizeKB,
     this.width,
     this.outputDirPath,
     this.height,
@@ -40,6 +42,7 @@ class CompressionOptions extends Equatable {
     String? preset,
     int? imageQuality,
     String? imageFormat,
+    int? targetSizeKB,
     int? width,
     int? height,
     int? audioBitrateK,
@@ -52,6 +55,7 @@ class CompressionOptions extends Equatable {
       preset: preset ?? this.preset,
       imageQuality: imageQuality ?? this.imageQuality,
       imageFormat: imageFormat ?? this.imageFormat,
+      targetSizeKB: targetSizeKB ?? this.targetSizeKB,
       width: width ?? this.width,
       height: height ?? this.height,
       audioBitrateK: audioBitrateK ?? this.audioBitrateK,
@@ -62,6 +66,6 @@ class CompressionOptions extends Equatable {
   @override
   List<Object?> get props => [
     mediaType, vCodec, crf, preset, imageQuality, 
-    imageFormat, width, height, audioBitrateK, outputDirPath
+    imageFormat, targetSizeKB, width, height, audioBitrateK, outputDirPath
   ];
 }

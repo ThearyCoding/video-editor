@@ -1,7 +1,7 @@
 import 'package:ffmepg_compress_video/features/audio_compressor/view/audio_compressor_page.dart'; 
 import 'package:ffmepg_compress_video/features/audio_extractor/view/audio_page.dart';
 import 'package:ffmepg_compress_video/features/merge_media/view/audio_video_merge_page.dart';
-import 'package:ffmepg_compress_video/features/compressor/view/compressor_page.dart';
+import 'package:ffmepg_compress_video/features/compressor/view/media_compressor_page.dart';
 import 'package:ffmepg_compress_video/features/frame_extractor/view/frame_page.dart';
 import 'package:ffmepg_compress_video/features/gif_maker/view/gif_page.dart';
 import 'package:ffmepg_compress_video/features/youtube_downloader/view/youtube_page.dart';
@@ -18,7 +18,7 @@ class _AppShellState extends State<AppShell> {
   int _index = 0;
 
   final _pages = const [
-    CompressorPage(),
+    MediaCompressorPage(),
     GifPage(),
     AudioPage(),
     FramePage(),

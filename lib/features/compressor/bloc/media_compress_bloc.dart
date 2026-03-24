@@ -7,16 +7,16 @@ import 'package:file_picker/file_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../service/ffmpeg_process_service.dart';
-import 'video_compress_event.dart';
-import 'video_compress_state.dart';
+import 'media_compress_event.dart';
+import 'media_compress_state.dart';
 
-const _kOutputDirKey = 'video_output_dir';
+const _kOutputDirKey = 'media_output_dir';
 
-class VideoCompressBloc extends Bloc<VideoCompressEvent, VideoCompressState> {
+class MediaCompressBloc extends Bloc<MediaCompressEvent, MediaCompressState> {
   final ImagePicker _picker = ImagePicker();
   final FfmpegProcessService _service = FfmpegProcessService();
 
-  VideoCompressBloc() : super(const VideoCompressState()) {
+  MediaCompressBloc() : super(const MediaCompressState()) {
     on<PickVideoRequested>(_onPickVideo);
     on<PickImageRequested>(_onPickImage);
     on<PickOutputDirRequested>(_onPickOutputDir);
@@ -44,7 +44,7 @@ class VideoCompressBloc extends Bloc<VideoCompressEvent, VideoCompressState> {
     } catch (_) {}
   }
 
-  Future<void> _onPickVideo(PickVideoRequested e, Emitter<VideoCompressState> emit) async {
+  Future<void> _onPickVideo(PickVideoRequested e, Emitter<MediaCompressState> emit) async {
     final XFile? xf = await _picker.pickVideo(source: ImageSource.gallery);
     if (xf == null) return;
     emit(state.copyWith(
@@ -56,7 +56,7 @@ class VideoCompressBloc extends Bloc<VideoCompressEvent, VideoCompressState> {
     ));
   }
 
-  Future<void> _onPickImage(PickImageRequested e, Emitter<VideoCompressState> emit) async {
+  Future<void> _onPickImage(PickImageRequested e, Emitter<MediaCompressState> emit) async {
     final XFile? xf = await _picker.pickImage(source: ImageSource.gallery);
     if (xf == null) return;
     emit(state.copyWith(
@@ -68,14 +68,14 @@ class VideoCompressBloc extends Bloc<VideoCompressEvent, VideoCompressState> {
     ));
   }
 
-  Future<void> _onPickOutputDir(PickOutputDirRequested e, Emitter<VideoCompressState> emit) async {
+  Future<void> _onPickOutputDir(PickOutputDirRequested e, Emitter<MediaCompressState> emit) async {
     final path = await FilePicker.platform.getDirectoryPath(dialogTitle: 'Choose output folder');
     if (path == null) return;
     await _persistOutputDir(path);
     emit(state.copyWith(outputDirPath: path));
   }
 
-  Future<void> _onCompress(CompressRequested e, Emitter<VideoCompressState> emit) async {
+  Future<void> _onCompress(CompressRequested e, Emitter<MediaCompressState> emit) async {
     final input = state.input;
     if (input == null) return;
 
@@ -114,16 +114,16 @@ class VideoCompressBloc extends Bloc<VideoCompressEvent, VideoCompressState> {
     }
   }
   
-  void _onOptionsChanged(OptionsChanged e, Emitter<VideoCompressState> emit) {
+  void _onOptionsChanged(OptionsChanged e, Emitter<MediaCompressState> emit) {
     emit(state.copyWith(options: e.options));
   }
 
-  void _onReset(ResetRequested e, Emitter<VideoCompressState> emit) {
-    emit(const VideoCompressState());
+  void _onReset(ResetRequested e, Emitter<MediaCompressState> emit) {
+    emit(const MediaCompressState());
     _hydrateOutputDir();
   }
 
-  void _onMediaTypeChanged(MediaTypeChanged e, Emitter<VideoCompressState> emit) {
+  void _onMediaTypeChanged(MediaTypeChanged e, Emitter<MediaCompressState> emit) {
     emit(state.copyWith(
       options: state.options.copyWith(mediaType: e.mediaType),
       input: null,

@@ -1,9 +1,8 @@
 import 'dart:io';
-
 import 'package:equatable/equatable.dart';
 import 'package:ffmepg_compress_video/features/compressor/compression_options.dart';
 
-class VideoCompressState extends Equatable {
+class MediaCompressState extends Equatable {
   final File? input;
   final File? output;
   final bool isProcessing;
@@ -13,7 +12,7 @@ class VideoCompressState extends Equatable {
   final String? outputDirPath;
   final double progress;
 
-  const VideoCompressState({
+  const MediaCompressState({
     this.input,
     this.output,
     this.isProcessing = false,
@@ -24,7 +23,7 @@ class VideoCompressState extends Equatable {
     this.progress = 0.0,
   });
 
-  VideoCompressState copyWith({
+  MediaCompressState copyWith({
     File? input,
     File? output,
     bool? isProcessing,
@@ -34,7 +33,7 @@ class VideoCompressState extends Equatable {
     String? outputDirPath,
     double? progress,
   }) {
-    return VideoCompressState(
+    return MediaCompressState(
       input: input ?? this.input,
       output: output ?? this.output,
       isProcessing: isProcessing ?? this.isProcessing,

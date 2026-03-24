@@ -9,7 +9,7 @@ class FFmpegHelper {
   static final FFmpegHelper _instance = FFmpegHelper._internal();
   factory FFmpegHelper() => _instance;
   FFmpegHelper._internal();
-Process? _currentProcess;
+  Process? _currentProcess;
   String? _ffmpegPath;
   String? _ffprobePath;
   bool _isInitialized = false;
@@ -17,7 +17,7 @@ Process? _currentProcess;
 
   Future<bool> initialize() async {
     if (_isInitialized) return true;
-    
+
     try {
       _platform = Platform.operatingSystem;
       log('Initializing FFmpeg for platform: $_platform');
@@ -43,13 +43,13 @@ Process? _currentProcess;
     if (_ffprobePath != null && await File(_ffprobePath!).exists()) {
       return _ffprobePath!;
     }
-    
+
     // Try to find ffprobe in the same directory as ffmpeg
     try {
       final ffmpegDir = p.dirname(await ffmpegPath);
       final ffprobeName = _platform == 'windows' ? 'ffprobe.exe' : 'ffprobe';
       final probeFile = File(p.join(ffmpegDir, ffprobeName));
-      
+
       if (await probeFile.exists()) {
         await _makeExecutable(probeFile.path);
         _ffprobePath = probeFile.path;
@@ -59,7 +59,7 @@ Process? _currentProcess;
     } catch (e) {
       log('Error finding ffprobe: $e');
     }
-    
+
     return null;
   }
 
@@ -70,7 +70,7 @@ Process? _currentProcess;
         final result = await Process.run('uname', ['-m']);
         final arch = result.stdout.toString().trim();
         log('Detected architecture: $arch');
-        
+
         if (arch == 'arm64' || arch == 'aarch64') {
           return 'arm64';
         }
@@ -79,7 +79,8 @@ Process? _currentProcess;
         log('Failed to detect architecture: $e');
         // Fallback to checking if running under Rosetta
         try {
-          final sysctlResult = await Process.run('sysctl', ['-n', 'hw.optional.arm64']);
+          final sysctlResult =
+              await Process.run('sysctl', ['-n', 'hw.optional.arm64']);
           if (sysctlResult.stdout.toString().trim() == '1') {
             return 'arm64';
           }
@@ -98,7 +99,7 @@ Process? _currentProcess;
         // Set permissions
         await Process.run('chmod', ['755', path]);
         await Process.run('chmod', ['+x', path]);
-        
+
         // Remove quarantine attribute (critical for macOS)
         try {
           await Process.run('xattr', ['-d', 'com.apple.quarantine', path]);
@@ -106,11 +107,10 @@ Process? _currentProcess;
         } catch (e) {
           log('No quarantine attribute to remove');
         }
-        
+
         // Verify permissions
         final stat = await File(path).stat();
         log('Final permissions: ${stat.mode}');
-        
       } catch (e) {
         log('Warning: Could not make file executable: $e');
       }
@@ -120,20 +120,20 @@ Process? _currentProcess;
   Future<bool> _verifyFFmpeg(String path) async {
     try {
       log('Verifying FFmpeg at: $path');
-      
+
       final file = File(path);
       if (!await file.exists()) {
         log('File does not exist');
         return false;
       }
-      
+
       final stat = await file.stat();
       log('File permissions: ${stat.mode}');
       log('File size: ${stat.size} bytes');
-      
+
       final result = await _runProcess(path, ['-version']);
       log('Exit code: ${result.exitCode}');
-      
+
       if (result.exitCode == 0) {
         log('FFmpeg version: ${result.stdout.toString().split('\n').first}');
         return true;
@@ -150,7 +150,7 @@ Process? _currentProcess;
   Future<void> _extractFFmpeg() async {
     final appDir = await getApplicationSupportDirectory();
     log('App support directory: ${appDir.path}');
-    
+
     final binDir = Directory(p.join(appDir.path, 'bin'));
     if (!await binDir.exists()) {
       await binDir.create(recursive: true);
@@ -159,13 +159,13 @@ Process? _currentProcess;
 
     String assetPath;
     String executableName;
-    
+
     if (_platform == 'windows') {
       executableName = 'ffmpeg.exe';
       assetPath = 'assets/bin/windows/ffmpeg.exe';
     } else if (_platform == 'macos') {
       executableName = 'ffmpeg';
-      
+
       // Detect architecture and select the correct binary
       final arch = await _getArchitecture();
       if (arch == 'arm64') {
@@ -185,7 +185,7 @@ Process? _currentProcess;
     if (await ffmpegFile.exists()) {
       log('Existing ffmpeg found');
       await _makeExecutable(ffmpegFile.path);
-      
+
       if (await _verifyFFmpeg(ffmpegFile.path)) {
         _ffmpegPath = ffmpegFile.path;
         log('Using existing ffmpeg');
@@ -200,7 +200,7 @@ Process? _currentProcess;
       log('Loading from assets: $assetPath');
       final byteData = await rootBundle.load(assetPath);
       log('Asset loaded, size: ${byteData.lengthInBytes} bytes');
-      
+
       final bytes = byteData.buffer.asUint8List(
         byteData.offsetInBytes,
         byteData.lengthInBytes,
@@ -208,23 +208,23 @@ Process? _currentProcess;
 
       await ffmpegFile.writeAsBytes(bytes);
       log('File written');
-      
+
       await _makeExecutable(ffmpegFile.path);
-      
+
       if (!await _verifyFFmpeg(ffmpegFile.path)) {
         throw Exception('FFmpeg binary verification failed after extraction');
       }
 
       _ffmpegPath = ffmpegFile.path;
       log('FFmpeg successfully installed at: $_ffmpegPath');
-      
     } catch (e) {
       log('Error extracting ffmpeg: $e');
       rethrow;
     }
   }
 
-  Future<ProcessResult> _runProcess(String executable, List<String> arguments) async {
+  Future<ProcessResult> _runProcess(
+      String executable, List<String> arguments) async {
     try {
       if (_platform == 'windows') {
         return await Process.run(executable, arguments, runInShell: true);
@@ -243,60 +243,66 @@ Process? _currentProcess;
   }
 
   Future<Process> startFFmpeg(List<String> arguments) async {
-  final path = await ffmpegPath;
-  log('Starting: $path ${arguments.join(' ')}');
+    final path = await ffmpegPath;
+    log('Starting: $path ${arguments.join(' ')}');
 
-  try {
-    if (_platform == 'windows') {
-      _currentProcess = await Process.start(path, arguments, runInShell: true);
-    } else {
-      try {
-        _currentProcess = await Process.start(path, arguments, runInShell: false);
-      } catch (e) {
-        log('Fallback to shell: $e');
-        _currentProcess = await Process.start(path, arguments, runInShell: true);
+    try {
+      if (_platform == 'windows') {
+        _currentProcess =
+            await Process.start(path, arguments, runInShell: true);
+      } else {
+        try {
+          _currentProcess =
+              await Process.start(path, arguments, runInShell: false);
+        } catch (e) {
+          log('Fallback to shell: $e');
+          _currentProcess =
+              await Process.start(path, arguments, runInShell: true);
+        }
       }
-    }
 
-    return _currentProcess!;
-  } catch (e) {
-    log('Process start error: $e');
-    rethrow;
-  }
-}
-Future<void> killAllFFmpegProcesses() async {
-  try {
-    if (_platform == 'windows') {
-      await Process.run('taskkill', ['/IM', 'ffmpeg.exe', '/F']);
-    } else if (_platform == 'macos' || _platform == 'linux') {
-      await Process.run('pkill', ['-f', 'ffmpeg']);
+      return _currentProcess!;
+    } catch (e) {
+      log('Process start error: $e');
+      rethrow;
     }
-
-    log('All FFmpeg processes killed');
-  } catch (e) {
-    log('Failed to kill FFmpeg processes: $e');
-  }
-}
-Future<void> killFFmpeg({bool force = false}) async {
-  if (_currentProcess == null) {
-    log('No FFmpeg process running');
-    return;
   }
 
-  try {
-    if (force) {
-      _currentProcess!.kill(ProcessSignal.sigkill);
-      log('FFmpeg force killed (SIGKILL)');
-    } else {
-      _currentProcess!.kill(ProcessSignal.sigterm);
-      log('FFmpeg gracefully terminated (SIGTERM)');
+  Future<void> killAllFFmpegProcesses() async {
+    try {
+      if (_platform == 'windows') {
+        await Process.run('taskkill', ['/IM', 'ffmpeg.exe', '/F']);
+      } else if (_platform == 'macos' || _platform == 'linux') {
+        await Process.run('pkill', ['-f', 'ffmpeg']);
+      }
+
+      log('All FFmpeg processes killed');
+    } catch (e) {
+      log('Failed to kill FFmpeg processes: $e');
     }
-  } catch (e) {
-    log('Error killing FFmpeg: $e');
-  } finally {
-    _currentProcess = null;
   }
-}
+
+  Future<void> killFFmpeg({bool force = false}) async {
+    if (_currentProcess == null) {
+      log('No FFmpeg process running');
+      return;
+    }
+
+    try {
+      if (force) {
+        _currentProcess!.kill(ProcessSignal.sigkill);
+        log('FFmpeg force killed (SIGKILL)');
+      } else {
+        _currentProcess!.kill(ProcessSignal.sigterm);
+        log('FFmpeg gracefully terminated (SIGTERM)');
+      }
+    } catch (e) {
+      log('Error killing FFmpeg: $e');
+    } finally {
+      _currentProcess = null;
+    }
+  }
+
   Future<ProcessResult> runFFmpeg(List<String> arguments) async {
     final path = await ffmpegPath;
     return await _runProcess(path, arguments);
